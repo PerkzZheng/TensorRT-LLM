@@ -244,7 +244,7 @@ class FusedMoE(nn.Module):
         dtype: Optional[torch.dtype] = None,
         reduce_results: bool = False,
         model_config: ModelConfig = ModelConfig(),
-        aux_stream: torch.cuda.Stream = torch.cuda.Stream(),
+        aux_stream: torch.cuda.Stream = None,
         weight_loading_mode: MoEWeightLoadingMode = MoEWeightLoadingMode.
         VANILLA,
         apply_router_weight_on_input: bool = False,
@@ -259,7 +259,10 @@ class FusedMoE(nn.Module):
         self.intermediate_size = intermediate_size
         self.weight_loading_mode = weight_loading_mode
 
-        self.aux_stream = aux_stream
+        if aux_stream is None:
+            self.aux_stream = torch.cuda.Stream()
+        else:
+            self.aux_stream = aux_stream
         self.event_dict = {
             key: torch.cuda.Event()
             for key in [EventType.Main, EventType.MoeChunkingOverlap]
@@ -407,7 +410,8 @@ class FusedMoE(nn.Module):
         self.has_fp8_qdq = False
         self.has_fp8_block_scales = False
         self.has_nvfp4 = False
-        if self.quant_config and self.quant_config.quant_mode.has_any_quant():
+        if self.quant_config and self.quant_config.quant_mode.has_any_quant(
+                exclude_kv_cache=True):
             self.has_any_quant = True
             qc = self.quant_config
             if qc.quant_mode.has_fp8_qdq():
@@ -1125,7 +1129,8 @@ class FusedMoE(nn.Module):
             load_expert_w2_weight(w2_weight, self.w2_weight.data[expert_idx],
                                   is_trtllm_nvfp4)
 
-        if self.quant_config and self.quant_config.quant_mode.has_any_quant():
+        if self.quant_config and self.quant_config.quant_mode.has_any_quant(
+                exclude_kv_cache=True):
             if self.quant_config.quant_mode.has_fp8_qdq():
                 self._load_fp8_qdq_scales(weights)
             elif self.quant_config.quant_mode.has_nvfp4():
