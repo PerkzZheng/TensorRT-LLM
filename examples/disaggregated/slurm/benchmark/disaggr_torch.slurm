@@ -128,12 +128,20 @@ fi
 srun -l --container-image=${container_image} \
         --container-name=${container_name} \
         --container-mounts=${mounts} \
+        --no-container-mount-home \
         --mpi=pmix \
         echo "Container up."
+srun -l --container-image=${container_image} \
+        --container-name=${container_name} \
+        --container-mounts=${mounts} \
+       --no-container-mount-home \
+       --mpi=pmix --overlap -N $SLURM_NNODES --ntasks-per-node=1 \
+       bash -c "apt update && apt install -y python3-dbg"
 
 if [ -n "${trtllm_repo}" ]; then
     srun --container-name=${container_name} \
         --container-mounts=${mounts} \
+        --no-container-mount-home \
         --mpi=pmix --overlap -N $SLURM_NNODES --ntasks-per-node=1 \
         bash -c "cd ${trtllm_repo} && echo 'Running install operation...' && pip install -e .  " 2>&1 | tee ${full_logdir}/install.log
 fi
@@ -142,6 +150,7 @@ echo "Generating YAML file for workers."
 srun -l -N 1 -n 1 \
         --container-name=${container_name} \
         --container-mounts=${mounts} \
+        --no-container-mount-home \
         --mpi=pmix --overlap \
         python3 ${workdir}/gen_worker_config.py \
                 --work_dir ${full_logdir} \
@@ -193,6 +202,7 @@ for i in $(seq 0 $((num_gen_servers - 1))); do
         --container-image=${container_image} \
         --container-name=${container_name} \
         --container-mounts=${mounts} \
+        --no-container-mount-home \
         --mpi=pmix \
         bash ${workdir}/start_worker.sh "GEN" ${i} ${model_dir} "8336" ${benchmark_mode} ${concurrency} ${enable_pdl} ${numa_bind} ${full_logdir} ${nsys_on} \
         &> ${full_logdir}/output_gen_${i}.log &
@@ -206,6 +216,7 @@ for i in $(seq 0 $((num_ctx_servers - 1))); do
         --container-image=${container_image} \
         --container-name=${container_name} \
         --container-mounts=${mounts} \
+        --no-container-mount-home \
         --mpi=pmix \
         bash ${workdir}/start_worker.sh "CTX" ${i} ${model_dir} "8336" ${benchmark_mode} ${concurrency} ${enable_pdl} ${numa_bind} ${full_logdir} ${nsys_on} \
             &> ${full_logdir}/output_ctx_${i}.log &
@@ -215,6 +226,7 @@ done
 srun -l --container-name=${container_name} \
     --container-image=${container_image} \
     --container-mounts=${mounts} \
+    --no-container-mount-home \
     --mpi=pmix --overlap -N 1 -n 1 \
     bash ${workdir}/start_server.sh ${num_ctx_servers} ${num_gen_servers} ${full_logdir} ${workdir} \
         &> ${full_logdir}/output_server.log &
@@ -222,6 +234,7 @@ srun -l --container-name=${container_name} \
 # start benchmarking
 srun -l --container-name=${container_name} \
     --container-mounts=${mounts} \
+    --no-container-mount-home \
     --mpi=pmix --overlap -N 1 -n 1 \
     bash ${workdir}/run_benchmark.sh ${isl} ${osl} ${multi_round} ${model_dir} "${concurrency}" ${streaming} ${full_logdir} \
         &> ${full_logdir}/benchmark.log 2>&1
