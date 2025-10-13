@@ -155,6 +155,8 @@ struct KernelParams
     int32_t mStartTokenIdx;
     // The sum of sequence lengths for Q and K/V.
     int32_t mSumOfSeqLensQ, mSumOfSeqLensKv;
+    // The top k value for sparse MLA.
+    int32_t mSparseMlaTopK;
 
     // Create the TMA shape/stride for Q.
     template <class FmhaOptions>
@@ -819,6 +821,9 @@ struct KernelParams
         params.mOutputScale = 1.f;
         params.mScaleSoftmaxLog2 = (1.f / (std::sqrt((float) (options.mHeadDimQk)) * options.mScaleQ)) * M_LOG2E;
         params.mStartTokenIdx = options.mSfStartTokenIdx;
+
+        // The top k value for sparse MLA.
+        params.mSparseMlaTopK = options.mSparseMlaTopK;
 
         return params;
     }
