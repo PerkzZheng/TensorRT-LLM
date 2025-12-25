@@ -532,7 +532,7 @@ private:
         FmhaKernelType& kernelType = selectKernelParams.mKernelType;
         // Generation kernelType will use either SwapsMmaAbForGeneration or KeepsMmaAbForGeneration.
         if (isGenerationKernel(params.mKernelType) && isMlaGenKernel(params))
-        {
+        {   
             // We use the low-latency kernel (SwapsMmaAbForGeneration with tileSizeQ = 16) when any of the following
             // conditions are met:
             // 1. The number of headsQPerKv is <= 32.
@@ -542,8 +542,8 @@ private:
             // The sparseMla kernel will always use the 2CTA high-throughput kernel.
 
             // Check the conditions.
-            if (params.mNumHeadsQPerKv <= 32 || (params.mSparseMla && params.mNumHeadsQPerKv < 128)
-                || useSwapsMmaAbMlaGenKernel(params))
+            if ((params.mNumHeadsQPerKv <= 32 || (params.mSparseMla && params.mNumHeadsQPerKv < 128)
+                || useSwapsMmaAbMlaGenKernel(params)) && !selectKernelParams.mSkipsSoftmaxWhenPossible)
             {
                 kernelType = FmhaKernelType::SwapsMmaAbForGeneration;
             }
@@ -556,9 +556,9 @@ private:
                 {
                     selectKernelParams.mMultiCtasKvMode = MultiCtasKvMode::GmemReductionWithSeparateKernel;
                 }
-                // The keepsMmaAbForGeneration sparseMla kernels only support numHeadsQPerKv = 128.
-                TLLM_CHECK_WITH_INFO(!params.mSparseMla || params.mNumHeadsQPerKv == 128,
-                    "The keepsMmaAbForGeneration sparseMla kernels only support numHeadsQPerKv = 128, got %d",
+                // The keepsMmaAbForGeneration sparseMla/skipsSoftmax kernels only support numHeadsQPerKv = 128.
+                TLLM_CHECK_WITH_INFO(!(params.mSparseMla || selectKernelParams.mSkipsSoftmaxWhenPossible) || params.mNumHeadsQPerKv == 128,
+                    "The keepsMmaAbForGeneration sparseMla/skipsSoftmax kernels only support numHeadsQPerKv = 128, got %d",
                     params.mNumHeadsQPerKv);
                 // The 2CTA keepsMmaAbForGeneration kernel is used when the numHeadsQPerKv is 128.
                 if (params.mNumHeadsQPerKv == 128)
@@ -650,9 +650,6 @@ private:
             // NumTokensPerPage is set to 0 when not selecting pagedKv-layout kernels.
             numTokensPerPage = 0;
         }
-
-        // The skip softmax.
-        selectKernelParams.mSkipsSoftmaxWhenPossible = params.mSkipSoftmaxThresholdScaleFactor != 0.0f;
 
         // Debug info.
         std::string info = "dtypeQ=" + std::to_string(static_cast<int>(mDtypeQ)) + ", dtypeKv="

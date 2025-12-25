@@ -364,7 +364,7 @@ struct TllmGenSelectKernelParams
         , mTileScheduler(params.mTileScheduler)
         , mTileSizeKv(128)
         , mUses2CtaMma(false)
-        , mSkipsSoftmaxWhenPossible(false){};
+        , mSkipsSoftmaxWhenPossible(params.mSkipSoftmaxThresholdScaleFactor != 0.0f){};
 };
 
 } // namespace kernels
