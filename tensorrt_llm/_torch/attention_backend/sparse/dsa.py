@@ -142,6 +142,10 @@ def transform_local_topk_and_prepare_pool_view(
         layer_id=layer_idx,
     )
 
+    device_id = torch.cuda.current_device()
+    if device_id == 3:
+        print(f"max global index: {global_indices.max().item()}")
+
     return global_indices, all_layer_kv_pool
 
 

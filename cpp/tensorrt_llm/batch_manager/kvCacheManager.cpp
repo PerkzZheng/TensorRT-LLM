@@ -891,6 +891,16 @@ void WindowBlockManager::allocatePools(bool useUvm)
         else
             pool.primaryPtr = mBufferManager.gpuSync(cacheShape, poolDtype);
 
+        // Print primary pool memory address range
+        auto const primaryPoolSize = ITensor::volume(cacheShape) * BufferDataType(poolDtype).getSize();
+        void* primaryStartAddr = pool.primaryPtr->data();
+        void* primaryEndAddr = static_cast<char*>(primaryStartAddr) + primaryPoolSize;
+        int device_id = 0;
+        cudaGetDevice(&device_id);
+        TLLM_LOG_INFO("[%s] Primary pool memory range: start=%p, end=%p, size=%zu bytes (%.2f MiB), device_id=%d",
+            mLogPrefix.c_str(), primaryStartAddr, primaryEndAddr, primaryPoolSize,
+            primaryPoolSize / (1024.0 * 1024.0), device_id);
+
         if (mNumSecondaryBlocks > 0)
         {
             nvinfer1::Dims const cacheShapeOffload
@@ -898,6 +908,14 @@ void WindowBlockManager::allocatePools(bool useUvm)
             TLLM_LOG_DEBUG("[%s] Allocating secondary pool with %d blocks for %d layers with %d kv heads",
                 mLogPrefix.c_str(), mNumSecondaryBlocks, pool.numLayers, pool.numKvHeads);
             pool.secondaryPtr = BufferManager::pinned(cacheShapeOffload, poolDtype);
+
+            // Print secondary pool memory address range
+            auto const secondaryPoolSize = ITensor::volume(cacheShapeOffload) * BufferDataType(poolDtype).getSize();
+            void* secondaryStartAddr = pool.secondaryPtr->data();
+            void* secondaryEndAddr = static_cast<char*>(secondaryStartAddr) + secondaryPoolSize;
+            TLLM_LOG_INFO("[%s] Secondary pool memory range: start=%p, end=%p, size=%zu bytes (%.2f MiB)",
+                mLogPrefix.c_str(), secondaryStartAddr, secondaryEndAddr, secondaryPoolSize,
+                secondaryPoolSize / (1024.0 * 1024.0));
         }
     }
 }
@@ -2064,6 +2082,7 @@ void KVCacheManager::allocatePools(bool useUvm)
     for (SizeType32 poolIdx = 0; poolIdx < numPools; poolIdx++)
     {
         auto const cacheShape = mBlockManager.getPrimaryPool(poolIdx)->getShape();
+        TLLM_LOG_INFO("poolIdx: %d, cacheShape: %s", poolIdx, ITensor::toString(cacheShape).c_str());
         auto const cacheVolume = ITensor::volume(cacheShape);
 #ifdef ENABLE_FP4
         auto const isFp4 = mDataType == nvinfer1::DataType::kFP4;
