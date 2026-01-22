@@ -451,6 +451,9 @@ void XqaDispatcher::runImpl(
             tllmRunnerParams.mQkvLayout = QkvLayout::ContiguousKv;
             tllmRunnerParams.kvPtr = kv_cache_buffer.data;
         }
+        
+        // The calibrated softmax max values.
+        tllmRunnerParams.softmaxCalibratedMaxPtr = nullptr;
 
         // The partial buffers' pointers when the multiCtasKv mode is enabled.
         tllmRunnerParams.multiCtasKvCounterPtr = launchParams.semaphores;
